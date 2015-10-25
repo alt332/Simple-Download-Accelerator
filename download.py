@@ -39,6 +39,9 @@ def get_file_size_and_extension(url):
     try:
         data = urllib2.urlopen(url)
         file_size = int(data.info()['Content-Length'])
+        if not file_size:
+            print "Content-Length not available! Please try another link!"
+            sys.exit(1)
         extension = data.info()['Content-Type'].split('/')[1]
         return file_size, extension
 
