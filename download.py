@@ -1,15 +1,17 @@
+#!/usr/bin/python
 import socket
 import sys
 import threading
 import urllib2
 
 
-socket.setdefaulttimeout(120)   # 2 minutes
+socket.setdefaulttimeout(5)   # 5 secs
 urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
 urllib2.install_opener(urllib2.build_opener(urllib2.HTTPCookieProcessor()))
 
 
 threads = []
+download_percent = 0
 headers = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5)'
     'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71'
@@ -46,7 +48,7 @@ def get_file_size_and_extension(url):
         return file_size, extension
 
     except:
-        print "Connection Error!"
+        print "\n Connection Error!"
         sys.exit(1)
 
 
@@ -62,26 +64,29 @@ class fetch_data(threading.Thread):
         self._stop.set()
 
     def run(self):
+        global download_percent
         request = urllib2.Request(self.url, None, headers)
         request.add_header('Range', 'bytes=%s' % (self.range))
 
         try:
             data = urllib2.urlopen(request).read()
+            self.data = data
+            sys.stdout.flush()
+            download_percent += 10
+            sys.stdout.write('\r %s%%' % download_percent)
         except:
-            print "Connection Error!"
-            sys.exit(1)
-
-        self.data = data
+            self.run()
 
 
 def main():
     try:
+        sys.stdout.write('\r %s%%' % download_percent)
         url = sys.argv[1]
         file_name = sys.argv[2]
         file_size, extension = get_file_size_and_extension(url)
-        range_list = get_range_list(file_size, 5)
+        range_list = get_range_list(file_size, 10)
 
-        for i in range(5):
+        for i in range(10):
             # spawn a thread in each iteration
             current_thread = fetch_data(url, file_name, range_list[i])
             current_thread.start()
@@ -93,7 +98,9 @@ def main():
         with open(file_name+"."+extension, 'w') as fh:
             for t in threads:
                 fh.write(t.data)
-        print "Done!"
+        sys.stdout.flush()
+        print '\n Done!'
+        sys.exit(1)
 
     except KeyboardInterrupt:
         print 'Shutting down threads.'
@@ -106,7 +113,7 @@ def main():
         print 'Shutting down threads.'
         for thread in threads:
             thread.stop()
-        pass
+        sys.exit(1)
 
 
 if __name__ == "__main__":
