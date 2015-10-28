@@ -137,7 +137,7 @@ def main():
             time.sleep(1)
 
         sys.stdout.flush()
-        if int(percent) != 100:
+        if retry_count == 0:
             os.remove(file_name+'.part')
             print '\n Connection Error!'
         else:
