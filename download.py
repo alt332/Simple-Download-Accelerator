@@ -14,6 +14,7 @@ urllib2.install_opener(urllib2.build_opener(urllib2.HTTPCookieProcessor()))
 
 threads = []
 total_download = 0.0
+retry_count = 10
 headers = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5)'
     'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71'
@@ -59,31 +60,33 @@ def get_file_size_and_extension(url):
 class fetch_data(threading.Thread):
     def __init__(self, url, file_name, length, start_offset):
         threading.Thread.__init__(self)
-        self.name = threading.currentThread().name
+        self.name = threading.current_thread().name
         self.url = url
         self.file_name = file_name
         self.length = length
-        self._stop = threading.Event()
+        self.stop_thread = False
         self.start_offset = start_offset
 
-    def stop(self):
-        self._stop.set()
-
     def run(self):
-        global total_download
+        global total_download, retry_count
         request = urllib2.Request(self.url, None, headers)
 
-        if self.length == 0:
+        if self.length == 0 or retry_count == 0 or self.stop_thread:
             return
         request.add_header('Range', 'bytes=%s-%s' % (self.start_offset,
                                                      self.start_offset +
                                                      self.length))
 
         while True:
+            if self.stop_thread:
+                sys.exit(1)
             try:
                 data = urllib2.urlopen(request)
-            except urllib2.URLError, u:
-                print "Connection", self.name, " did not start with", u
+            except urllib2.URLError:
+                retry_count -= 1
+                if retry_count == 0:
+                    self.stop_thread = True
+                return
             else:
                 break
 
@@ -93,6 +96,8 @@ class fetch_data(threading.Thread):
         block_size = 1024
 
         while self.length > 0:
+            if self.stop_thread:
+                return
             if self.length >= block_size:
                 fetch_size = block_size
             else:
@@ -131,22 +136,24 @@ def main():
             sys.stdout.write('\r %.2f%%' % percent)
             time.sleep(1)
 
-        os.rename(file_name+".part", file_name+"."+extension)
         sys.stdout.flush()
-        print '\n Done!'
+        if int(percent) != 100:
+            os.remove(file_name+'.part')
+            print '\n Connection Error!'
+        else:
+            os.rename(file_name+".part", file_name+"."+extension)
+            print '\n Done!'
         sys.exit(1)
 
     except KeyboardInterrupt:
-        print 'Shutting down threads.'
         for thread in threads:
-            thread.stop()
+            thread.stop_thread = True
         sys.exit(1)
 
     except Exception, e:
         print e
-        print 'Shutting down threads.'
         for thread in threads:
-            thread.stop()
+            thread.stop_thread = True
         sys.exit(1)
 
 
