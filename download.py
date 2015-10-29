@@ -105,7 +105,8 @@ class fetch_data(threading.Thread):
             try:
                 data_block = data.read(fetch_size)
 
-                if len(data_block) != fetch_size:
+                if len(data_block) != fetch_size \
+                   and (fetch_size - len(data_block)) > 1:
                     self.run()
                     return
             except socket.timeout:
@@ -141,6 +142,7 @@ def main():
             time.sleep(1)
 
         sys.stdout.flush()
+        print 'here'
         if retry_count == 0:
             os.remove(file_name+'.part')
             print '\n Connection Error!'
