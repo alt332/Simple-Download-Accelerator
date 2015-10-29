@@ -104,14 +104,18 @@ class fetch_data(threading.Thread):
                 fetch_size = self.length
             try:
                 data_block = data.read(fetch_size)
+
+                if len(data_block) != fetch_size:
+                    self.run()
+                    return
             except socket.timeout:
                 self.run()
                 return
 
             self.length -= fetch_size
-            self.start_offset += len(data_block)
             sys.stdout.flush()
             os.write(output, data_block)
+            self.start_offset += len(data_block)
             total_download += len(data_block)
 
 
