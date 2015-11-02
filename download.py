@@ -7,7 +7,7 @@ import time
 import urllib2
 
 
-socket.setdefaulttimeout(5)   # 5 secs
+socket.setdefaulttimeout(120)   # 2 mins
 urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
 urllib2.install_opener(urllib2.build_opener(urllib2.HTTPCookieProcessor()))
 
@@ -109,15 +109,15 @@ class fetch_data(threading.Thread):
                    and (fetch_size - len(data_block)) > 1:
                     self.run()
                     return
+
+                self.length -= fetch_size
+                sys.stdout.flush()
+                os.write(output, data_block)
+                self.start_offset += len(data_block)
+                total_download += len(data_block)
             except socket.timeout:
                 self.run()
-                return
-
-            self.length -= fetch_size
-            sys.stdout.flush()
-            os.write(output, data_block)
-            self.start_offset += len(data_block)
-            total_download += len(data_block)
+                pass
 
 
 def main():
@@ -141,13 +141,12 @@ def main():
             sys.stdout.write('\r %.2f%%' % percent)
             time.sleep(1)
 
-        sys.stdout.flush()
-        print 'here'
         if retry_count == 0:
             os.remove(file_name+'.part')
             print '\n Connection Error!'
         else:
             os.rename(file_name+".part", file_name+"."+extension)
+            sys.stdout.write('\r %.2f%%' % 100.00)
             print '\n Done!'
         sys.exit(1)
 
