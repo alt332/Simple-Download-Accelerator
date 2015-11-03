@@ -34,10 +34,7 @@ def get_lengths_and_offsets(file_size, split_num):
     offsets = []
     start = 0
     for i in range(len(lengths)):
-        if i == 0:
-            offsets.append(start)
-        else:
-            offsets.append(start+1)
+        offsets.append(start)
         start += lengths[i]
     return lengths, offsets
 
@@ -87,6 +84,9 @@ class fetch_data(threading.Thread):
                 if retry_count == 0:
                     self.stop_thread = True
                 return
+            except socket.timeout:
+                self.run()
+                pass
             else:
                 break
 
